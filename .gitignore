@@ -1,0 +1,16 @@
+*.md
+
+# Target
+target/
+
+# IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
