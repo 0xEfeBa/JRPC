@@ -14,46 +14,43 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Netty İstemci Başlatıcısı.
- * Yeni bağlantılar oluşturmaktan sorumludur.
+ * Netty Client Bootstrapper.
+ * Responsible for establishing new TCP connections.
  */
 public class RpcClientBootstrap {
 
     private final Bootstrap bootstrap;
     private final EventLoopGroup group;
-    private final Serializer serializer;
 
     public RpcClientBootstrap(Serializer serializer) {
-        this.serializer = serializer;
         this.group = new NioEventLoopGroup();
         this.bootstrap = new Bootstrap();
 
         this.bootstrap.group(group)
                 .channel(NioSocketChannel.class)
-                .option(ChannelOption.TCP_NODELAY, true) // Gecikmeyi azaltır (Nagle Algoritması kapalı)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000) // 5 saniye bağlanamazsa hata ver
+                .option(ChannelOption.TCP_NODELAY, true) // Disable Nagle's algorithm
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000) // 5s timeout
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ChannelPipeline pipeline = ch.pipeline();
 
-                        // 1. HEARTBEAT: 30 saniye boyunca veri yazılmazsa PING atılmasını tetikler
+                        // 1. HEARTBEAT: Triggers PING if idle for 30s
                         pipeline.addLast(new IdleStateHandler(0, 30, 0, TimeUnit.SECONDS));
 
-                        // 2. CODEC: Baytları nesneye, nesneleri bayta çevirir
+                        // 2. CODEC: Handles serialization/deserialization
                         pipeline.addLast(new RpcEncoder(serializer));
                         pipeline.addLast(new RpcDecoder(serializer));
                         pipeline.addLast(new ClientHandler());
 
-                        // 3. HANDLER: Gelen cevapları ve Heartbeat olaylarını yakalar
-                        // (Bunu bir sonraki adımda yazacağız)
+                        // 3. HANDLER: Captures responses and heartbeat events
                         // pipeline.addLast(new ClientHandler());
                     }
                 });
     }
 
     /**
-     * Belirtilen adrese yeni bir TCP bağlantısı açar.
+     * Establishes a new TCP connection to the specified address.
      */
     public Channel connect(InetSocketAddress address) {
         try {
@@ -63,13 +60,13 @@ public class RpcClientBootstrap {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Bağlantı kesildi", e);
+            throw new RuntimeException("Connection lost", e);
         }
         return null;
     }
 
     /**
-     * İstemciyi kapatır (Kütüphane kapanırken çağrılır).
+     * Gracefully shuts down the client resources.
      */
     public void shutdown() {
         group.shutdownGracefully();

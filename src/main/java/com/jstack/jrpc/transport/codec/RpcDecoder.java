@@ -11,7 +11,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.ReferenceCountUtil;
 
 /**
- * Ağdan gelen parçalı baytları birleştirir ve JRPC nesnelerine dönüştürür.
+ * Decodes incoming bytes into JRPC protocol objects.
  */
 public class RpcDecoder extends LengthFieldBasedFrameDecoder {
 
@@ -46,13 +46,13 @@ public class RpcDecoder extends LengthFieldBasedFrameDecoder {
             byte type = frame.readByte();
             int bodyLength = frame.readInt();
 
-            // --- HEARTBEAT MANTIĞI ---
+            // --- HEARTBEAT LOGIC ---
             if (type == ProtocolConstants.MESSAGE_TYPE_HEARTBEAT_PING) {
-                // Ping geldiyse hemen Pong dön
+                // Incoming PING -> Immediate PONG
                 ctx.writeAndFlush(HeartbeatMessage.PONG);
                 return null;
             } else if (type == ProtocolConstants.MESSAGE_TYPE_HEARTBEAT_PONG) {
-                // Pong geldiyse sadece yut, bağlantı canlı demektir
+                // Incoming PONG -> Silently consume
                 return null;
             }
             // -------------------------

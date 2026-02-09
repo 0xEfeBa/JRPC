@@ -7,6 +7,11 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * Data Transfer Object representing an RPC request.
+ * Contains all necessary metadata for remote method invocation and distributed
+ * tracing.
+ */
 @Data
 @Builder
 @NoArgsConstructor

@@ -7,6 +7,11 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * Data Transfer Object representing an RPC response.
+ * Pairs with {@link RpcRequest} via requestId to handle asynchronous network
+ * communication.
+ */
 @Data
 @Builder
 @NoArgsConstructor

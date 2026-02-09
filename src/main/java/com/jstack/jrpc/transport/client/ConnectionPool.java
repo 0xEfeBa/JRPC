@@ -14,11 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConnectionPool {
 
-    // Idle (boşta) bekleyen kanallar
+    // Channels waiting in idle state
     private final Map<String, BlockingQueue<Channel>> idleChannels = new ConcurrentHashMap<>();
 
-    // Her host için toplam canlı bağlantı sayısını kontrol eden trafik ışıkları
-    // (Semaphore)
+    // Concurrency control per host using Semaphores
     private final Map<String, Semaphore> hostSemaphores = new ConcurrentHashMap<>();
 
     private final RpcClientBootstrap bootstrap;
@@ -42,18 +41,18 @@ public class ConnectionPool {
         BlockingQueue<Channel> queue = idleChannels.computeIfAbsent(key,
                 k -> new LinkedBlockingQueue<>(maxConnectionsPerHost));
 
-        // 1. Havuzda hazırda (idle) bekleyen canlı bir kanal var mı?
+        // 1. Check for available idle channel
         Channel channel = queue.poll();
         if (channel != null && channel.isActive()) {
             return channel;
         }
 
-        // 2. Yoksa, yeni bir bağlantı açmak için trafik ışığından (Semaphore) izin iste
+        // 2. Otherwise, request permit to create a new connection
         Semaphore semaphore = hostSemaphores.computeIfAbsent(key,
                 k -> new Semaphore(maxConnectionsPerHost));
 
         try {
-            // Belirlenen timeout süresince izin bekle
+            // Wait for permit within timeout
             if (semaphore.tryAcquire(acquireTimeout, TimeUnit.MILLISECONDS)) {
                 try {
                     Channel newChannel = bootstrap.connect(address);
@@ -61,10 +60,10 @@ public class ConnectionPool {
                         return newChannel;
                     }
                 } catch (Exception e) {
-                    semaphore.release(); // Bağlantı başarısızsa izni geri ver
+                    semaphore.release(); // Release permit if connection fails
                     throw e;
                 }
-                semaphore.release(); // Bağlanamadıysa izni geri ver
+                semaphore.release(); // Release if connect returned null
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -80,7 +79,7 @@ public class ConnectionPool {
     public void release(InetSocketAddress address, Channel channel) {
         String key = address.toString();
 
-        // Kanal bozuksa veya kapanmışsa havuza alma, izni serbest bırak
+        // If channel is invalid, release permit instead of pooling
         if (channel == null || !channel.isActive()) {
             releasePermit(key);
             return;
@@ -88,18 +87,18 @@ public class ConnectionPool {
 
         BlockingQueue<Channel> queue = idleChannels.get(key);
 
-        // Kanalı havuza (idle kuyruğuna) geri koymayı dene
+        // Try returning channel to idle queue
         if (queue != null && queue.offer(channel)) {
             log.debug("Channel returned to pool: {}", key);
         } else {
-            // Havuz doluysa veya kuyruk yoksa güvenli bir şekilde kapat
+            // Close channel if pool is full
             channel.close();
             releasePermit(key);
         }
     }
 
     /**
-     * Toplam canlı bağlantı kotasını (Semaphore) bir adet artırır.
+     * Increments the connection permit for the specified host.
      */
     private void releasePermit(String key) {
         Semaphore semaphore = hostSemaphores.get(key);

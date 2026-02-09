@@ -14,17 +14,16 @@ public class NettyCodecTest {
 
     @Test
     public void testEncodeAndDecode() {
-        // 1. Hazırlık: Serializer ve Konfigürasyon
+        // 1. Setup: Serializer and Configuration
         JRpcConfig config = new JRpcConfig.Builder().useCompatibleFieldSerializer(false).build();
         KryoSerializer serializer = new KryoSerializer(config);
 
-        // 2. EmbeddedChannel Kurulumu: Pipeline'a yazdığımız Encoder ve Decoder'ı
-        // ekliyoruz.
+        // 2. EmbeddedChannel Setup: Adding our Encoder and Decoder to the pipeline.
         EmbeddedChannel channel = new EmbeddedChannel(
                 new RpcDecoder(serializer),
                 new RpcEncoder(serializer));
 
-        // 3. Senaryo: Bir RpcRequest Nesnesi Oluştur
+        // 3. Scenario: Create an RpcRequest Object
         RpcRequest request = RpcRequest.builder()
                 .requestId(IdGenerator.nextId())
                 .traceId(UUID.randomUUID().toString())
@@ -34,15 +33,15 @@ public class NettyCodecTest {
                 .paramTypes(new Class[] { String.class })
                 .build();
 
-        // 4. Eylem: Nesneyi kanala "yaz" (Outbound - Encoding başlar)
+        // 4. Action: Write the object into the channel (Outbound - Encoding starts)
         channel.writeOutbound(request);
 
-        // 5. Ara Adım: Encoder'dan çıkan baytları al ve Decoder'ın girişine ver
-        // (Inbound - Decoding başlar)
+        // 5. Intermediate Step: Take bytes from Encoder and feed into Decoder
+        // (Inbound - Decoding starts)
         Object encodedData = channel.readOutbound();
         channel.writeInbound(encodedData);
 
-        // 6. Sonuç: Decoder'dan çıkan nesneyi oku ve doğrula
+        // 6. Result: Read and verify the object coming out of Decoder
         RpcRequest decodedRequest = channel.readInbound();
 
         Assertions.assertNotNull(decodedRequest);

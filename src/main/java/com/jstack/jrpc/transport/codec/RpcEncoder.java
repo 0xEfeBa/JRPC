@@ -10,7 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
 /**
- * Java nesnelerini JRPC protokol formatında ByteBuf'a dönüştürür.
+ * Encodes Java objects into ByteBuf following the JRPC protocol.
  */
 public class RpcEncoder extends MessageToByteEncoder<Object> {
 
@@ -22,7 +22,7 @@ public class RpcEncoder extends MessageToByteEncoder<Object> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) {
-        // 1. Tip Belirleme (Type)
+        // 1. Identify message type
         byte messageType;
         if (msg instanceof RpcRequest) {
             messageType = ProtocolConstants.MESSAGE_TYPE_REQUEST;
@@ -36,16 +36,16 @@ public class RpcEncoder extends MessageToByteEncoder<Object> {
             return;
         }
 
-        // 2. Serileştirme (Heartbeat paketlerinde payload boştur)
+        // 2. Serialization (Heartbeat packets have no payload)
         byte[] data;
         if (messageType == ProtocolConstants.MESSAGE_TYPE_HEARTBEAT_PING ||
                 messageType == ProtocolConstants.MESSAGE_TYPE_HEARTBEAT_PONG) {
-            data = new byte[0]; // Ping/Pong için veri taşımaya gerek yok
+            data = new byte[0]; // No payload needed for Ping/Pong
         } else {
             data = serializer.serialize(msg);
         }
 
-        // 3. Yazma İşlemi (Header + Payload)
+        // 3. Write Header + Payload
         out.writeInt(ProtocolConstants.MAGIC_NUMBER); // Magic (4 byte)
         out.writeByte(ProtocolConstants.VERSION); // Version (1 byte)
         out.writeByte(messageType); // Type (1 byte)

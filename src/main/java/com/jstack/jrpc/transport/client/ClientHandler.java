@@ -29,8 +29,6 @@ public class ClientHandler extends SimpleChannelInboundHandler<RpcResponse> {
     protected void channelRead0(ChannelHandlerContext ctx, RpcResponse response) {
         log.debug("Received response from server. RequestId: {}", response.getRequestId());
 
-        // TODO: (Day 10-11) Hand over the response to the asynchronously waiting thread
-        // via FutureManager.
     }
 
     @Override
